@@ -1,58 +1,46 @@
 ------------------ change this -------------------
 
 admins = {
-    'steam:110000105959047',
-    --'license:1234975143578921327',
+    'steam:11000013edf372d',
+    'steam:1100001586cb84d'
 }
 
 -- Set this to false if you don't want the weather to change automatically every 10 minutes.
-DynamicWeather = true
+DynamicWeather = false
 
 --------------------------------------------------
 debugprint = false -- don't touch this unless you know what you're doing or you're being asked by Vespura to turn this on.
 --------------------------------------------------
 
-
-
-
-
-
-
 -------------------- DON'T CHANGE THIS --------------------
 AvailableWeatherTypes = {
-    'EXTRASUNNY', 
-    'CLEAR', 
-    'NEUTRAL', 
-    'SMOG', 
-    'FOGGY', 
-    'OVERCAST', 
-    'CLOUDS', 
-    'CLEARING', 
-    'RAIN', 
-    'THUNDER', 
-    'SNOW', 
-    'BLIZZARD', 
-    'SNOWLIGHT', 
-    'XMAS', 
+    'EXTRASUNNY',
+    'CLEAR',
+    'NEUTRAL',
+    'SMOG',
+    'FOGGY',
+    'OVERCAST',
+    'CLOUDS',
+    'CLEARING',
+    'RAIN',
+    'THUNDER',
+    'SNOW',
+    'BLIZZARD',
+    'SNOWLIGHT',
+    'XMAS',
     'HALLOWEEN',
 }
-CurrentWeather = "EXTRASUNNY"
+CurrentWeather = 'XMAS'
 local baseTime = 0
 local timeOffset = 0
 local freezeTime = false
 local blackout = false
 local newWeatherTimer = 10
 
-RegisterServerEvent('vSync:requestSync')
-AddEventHandler('vSync:requestSync', function()
-    TriggerClientEvent('vSync:updateWeather', -1, CurrentWeather, blackout)
-    TriggerClientEvent('vSync:updateTime', -1, baseTime, timeOffset, freezeTime)
-end)
-
-function isAllowedToChange(player)
+local function isAllowedToChange(player)
     local allowed = false
-    for i,id in ipairs(admins) do
-        for x,pid in ipairs(GetPlayerIdentifiers(player)) do
+    for _,id in ipairs(admins) do
+        for _,pid in ipairs(GetPlayerIdentifiers(player)) do
             if debugprint then print('admin id: ' .. id .. '\nplayer id:' .. pid) end
             if string.lower(pid) == string.lower(id) then
                 allowed = true
@@ -62,11 +50,47 @@ function isAllowedToChange(player)
     return allowed
 end
 
-RegisterCommand('freezetime', function(source, args)
+local function setTimeOfDay(source, hour, minute)
+    if isAllowedToChange(source) then
+        ShiftToMinute(minute)
+        ShiftToHour(hour)
+        TriggerClientEvent('vSync:updateSet', -1)
+        --TriggerClientEvent('vSync:notify', source, string.format("%s ~y~%s~s~.", lang.timeSet, text))
+        TriggerEvent('vSync:requestSync')
+    end
+end
+
+RegisterServerEvent('vSync:requestSync')
+AddEventHandler('vSync:requestSync', function()
+    TriggerClientEvent('vSync:updateWeather', -1, CurrentWeather, blackout)
+    TriggerClientEvent('vSync:updateTime', -1, baseTime, timeOffset, freezeTime)
+end)
+
+RegisterServerEvent('vSync:changeWeather')
+AddEventHandler('vSync:changeWeather', function(weather)
+    CurrentWeather = weather
+    TriggerEvent('vSync:requestSync')
+end)
+
+RegisterCommand('changeback', function(source)
+    if source == 0 then
+        TriggerClientEvent('vSync:updateSet2', -1)
+        TriggerEvent('vSync:requestSync')
+    end
+    if isAllowedToChange(source) then
+        setTimeOfDay(source, 9, 0)
+        TriggerClientEvent('vSync:notify', source, 'Time set to ~y~back~s~.')
+        TriggerClientEvent('vSync:updateSet2', -1)
+        TriggerEvent('vSync:requestSync')
+    end
+end, false)
+
+RegisterCommand('freezetime', function(source)
     if source ~= 0 then
         if isAllowedToChange(source) then
             freezeTime = not freezeTime
             if freezeTime then
+                TriggerClientEvent('vSync:updateSet', -1)
                 TriggerClientEvent('vSync:notify', source, 'Time is now ~b~frozen~s~.')
             else
                 TriggerClientEvent('vSync:notify', source, 'Time is ~y~no longer frozen~s~.')
@@ -82,9 +106,9 @@ RegisterCommand('freezetime', function(source, args)
             print("Time is no longer frozen.")
         end
     end
-end)
+end, false)
 
-RegisterCommand('freezeweather', function(source, args)
+RegisterCommand('freezeweather', function(source)
     if source ~= 0 then
         if isAllowedToChange(source) then
             DynamicWeather = not DynamicWeather
@@ -104,7 +128,7 @@ RegisterCommand('freezeweather', function(source, args)
             print("Weather is no longer frozen.")
         end
     end
-end)
+end, false)
 
 RegisterCommand('weather', function(source, args)
     if source == 0 then
@@ -113,7 +137,7 @@ RegisterCommand('weather', function(source, args)
             print("Invalid syntax, correct syntax is: /weather <weathertype> ")
             return
         else
-            for i,wtype in ipairs(AvailableWeatherTypes) do
+            for _,wtype in ipairs(AvailableWeatherTypes) do
                 if wtype == string.upper(args[1]) then
                     validWeatherType = true
                 end
@@ -131,9 +155,9 @@ RegisterCommand('weather', function(source, args)
         if isAllowedToChange(source) then
             local validWeatherType = false
             if args[1] == nil then
-                TriggerClientEvent('chatMessage', source, '', {255,255,255}, '^8Error: ^1Invalid syntax, use ^0/weather <weatherType> ^1instead!')
+                TriggerClientEvent('chat:addMessage', source, '', {255,255,255}, '^8Error: ^1Invalid syntax, use ^0/weather <weatherType> ^1instead!')
             else
-                for i,wtype in ipairs(AvailableWeatherTypes) do
+                for _,wtype in ipairs(AvailableWeatherTypes) do
                     if wtype == string.upper(args[1]) then
                         validWeatherType = true
                     end
@@ -144,11 +168,11 @@ RegisterCommand('weather', function(source, args)
                     newWeatherTimer = 10
                     TriggerEvent('vSync:requestSync')
                 else
-                    TriggerClientEvent('chatMessage', source, '', {255,255,255}, '^8Error: ^1Invalid weather type, valid weather types are: ^0\nEXTRASUNNY CLEAR NEUTRAL SMOG FOGGY OVERCAST CLOUDS CLEARING RAIN THUNDER SNOW BLIZZARD SNOWLIGHT XMAS HALLOWEEN ')
+                    TriggerClientEvent('chat:addMessage', source, '', {255,255,255}, '^8Error: ^1Invalid weather type, valid weather types are: ^0\nEXTRASUNNY CLEAR NEUTRAL SMOG FOGGY OVERCAST CLOUDS CLEARING RAIN THUNDER SNOW BLIZZARD SNOWLIGHT XMAS HALLOWEEN ')
                 end
             end
         else
-            TriggerClientEvent('chatMessage', source, '', {255,255,255}, '^8Error: ^1You do not have access to that command.')
+            TriggerClientEvent('chat:addMessage', source, '', {255,255,255}, '^8Error: ^1You do not have access to that command.')
             print('Access for command /weather denied.')
         end
     end
@@ -173,56 +197,81 @@ RegisterCommand('blackout', function(source)
             TriggerEvent('vSync:requestSync')
         end
     end
-end)
+end, false)
+
+RegisterCommand('sunrise', function(source)
+    if source == 0 then
+        setTimeOfDay(source, 5, 0)
+    end
+    if isAllowedToChange(source) then
+        setTimeOfDay(source, 5, 0)
+        TriggerClientEvent('vSync:notify', source, 'Time set to ~y~morning~s~.')
+        TriggerClientEvent('vSync:updateSet', -1)
+        TriggerEvent('vSync:requestSync')
+    end
+end, false)
 
 RegisterCommand('morning', function(source)
     if source == 0 then
-        print("For console, use the \"/time <hh> <mm>\" command instead!")
-        return
+        setTimeOfDay(source, 9, 0)
     end
     if isAllowedToChange(source) then
-        ShiftToMinute(0)
-        ShiftToHour(9)
+        setTimeOfDay(source, 9, 0)
         TriggerClientEvent('vSync:notify', source, 'Time set to ~y~morning~s~.')
+        TriggerClientEvent('vSync:updateSet', -1)
         TriggerEvent('vSync:requestSync')
     end
-end)
+end, false)
+
 RegisterCommand('noon', function(source)
     if source == 0 then
-        print("For console, use the \"/time <hh> <mm>\" command instead!")
-        return
+        setTimeOfDay(source, 12, 0)
     end
     if isAllowedToChange(source) then
-        ShiftToMinute(0)
-        ShiftToHour(12)
+        setTimeOfDay(source, 12, 0)
+        TriggerClientEvent('vSync:updateSet', -1)
         TriggerClientEvent('vSync:notify', source, 'Time set to ~y~noon~s~.')
         TriggerEvent('vSync:requestSync')
     end
-end)
-RegisterCommand('evening', function(source)
+end, false)
+
+RegisterCommand('sunset', function(source)
     if source == 0 then
-        print("For console, use the \"/time <hh> <mm>\" command instead!")
-        return
+        setTimeOfDay(source, 16, 0)
     end
     if isAllowedToChange(source) then
-        ShiftToMinute(0)
-        ShiftToHour(18)
+        setTimeOfDay(source, 16, 0)
+        TriggerClientEvent('vSync:notify', source, 'Time set to ~y~morning~s~.')
+        TriggerClientEvent('vSync:updateSet', -1)
+        TriggerEvent('vSync:requestSync')
+    end
+end, false)
+
+RegisterCommand('evening', function(source)
+    if source == 0 then
+        TriggerClientEvent('vSync:updateSet', -1)
+        setTimeOfDay(source, 18, 0)
+    end
+    if isAllowedToChange(source) then
+        setTimeOfDay(source, 18, 0)
+        TriggerClientEvent('vSync:updateSet', -1)
         TriggerClientEvent('vSync:notify', source, 'Time set to ~y~evening~s~.')
         TriggerEvent('vSync:requestSync')
     end
-end)
+end, false)
+
 RegisterCommand('night', function(source)
     if source == 0 then
-        print("For console, use the \"/time <hh> <mm>\" command instead!")
-        return
+        setTimeOfDay(source, 23, 0)
+        TriggerClientEvent('vSync:updateSet', -1)
     end
     if isAllowedToChange(source) then
-        ShiftToMinute(0)
-        ShiftToHour(23)
+        setTimeOfDay(source, 23, 0)
+        TriggerClientEvent('vSync:updateSet', -1)
         TriggerClientEvent('vSync:notify', source, 'Time set to ~y~night~s~.')
         TriggerEvent('vSync:requestSync')
     end
-end)
+end, false)
 
 function ShiftToMinute(minute)
     timeOffset = timeOffset - ( ( (baseTime+timeOffset) % 60 ) - minute )
@@ -232,7 +281,7 @@ function ShiftToHour(hour)
     timeOffset = timeOffset - ( ( ((baseTime+timeOffset)/60) % 24 ) - hour ) * 60
 end
 
-RegisterCommand('time', function(source, args, rawCommand)
+RegisterCommand('time', function(source, args)
     if source == 0 then
         if tonumber(args[1]) ~= nil and tonumber(args[2]) ~= nil then
             local argh = tonumber(args[1])
@@ -247,10 +296,11 @@ RegisterCommand('time', function(source, args, rawCommand)
             else
                 ShiftToMinute(0)
             end
-            print("Time has changed to " .. argh .. ":" .. argm .. ".")
+            print("Time Change" .. argh .. ":" .. argm .. ".")
+            TriggerClientEvent('vSync:updateSet', -1)
             TriggerEvent('vSync:requestSync')
         else
-            print("Invalid syntax, correct syntax is: time <hour> <minute> !")
+            --print(lang.errorInvalidSyntax .. lang.syntaxTime)
         end
     elseif source ~= 0 then
         if isAllowedToChange(source) then
@@ -274,58 +324,61 @@ RegisterCommand('time', function(source, args, rawCommand)
                 else
                     newtime = newtime .. minute
                 end
-                TriggerClientEvent('vSync:notify', source, 'Time was changed to: ~y~' .. newtime .. "~s~!")
+                --TriggerClientEvent('vSync:notify', source, lang.timeChanged..': ~y~' .. newtime .. "~s~!")
+        TriggerClientEvent('vSync:updateSet', -1)
                 TriggerEvent('vSync:requestSync')
             else
-                TriggerClientEvent('chatMessage', source, '', {255,255,255}, '^8Error: ^1Invalid syntax. Use ^0/time <hour> <minute> ^1instead!')
+                --TriggerClientEvent('chatMessage', source, '', {255,255,255}, lang.errorInvalidSyntax .. lang.syntaxTime)
             end
         else
-            TriggerClientEvent('chatMessage', source, '', {255,255,255}, '^8Error: ^1You do not have access to that command.')
-            print('Access for command /time denied.')
+            --TriggerClientEvent('chatMessage', source, '', {255,255,255}, lang.errorNotAllowed)
+            --print(lang.errorAcessDenied..'/time')
         end
     end
-end)
+end, false)
 
-Citizen.CreateThread(function()
+CreateThread(function()
     while true do
-        Citizen.Wait(0)
+        local sleep = 5000
         local newBaseTime = os.time(os.date("!*t"))/2 + 360
         if freezeTime then
-            timeOffset = timeOffset + baseTime - newBaseTime			
+            sleep = 0
+            timeOffset = timeOffset + baseTime - newBaseTime
         end
         baseTime = newBaseTime
+        Wait(sleep)
     end
 end)
 
-Citizen.CreateThread(function()
+CreateThread(function()
     while true do
-        Citizen.Wait(5000)
+        Wait(35000)
         TriggerClientEvent('vSync:updateTime', -1, baseTime, timeOffset, freezeTime)
     end
 end)
 
-Citizen.CreateThread(function()
+CreateThread(function()
     while true do
-        Citizen.Wait(300000)
+        Wait(300000)
         TriggerClientEvent('vSync:updateWeather', -1, CurrentWeather, blackout)
     end
 end)
 
-Citizen.CreateThread(function()
+CreateThread(function()
     while true do
         newWeatherTimer = newWeatherTimer - 1
-        Citizen.Wait(60000)
+        Wait(60000)
         if newWeatherTimer == 0 then
             if DynamicWeather then
                 NextWeatherStage()
             end
-            newWeatherTimer = 10
+            newWeatherTimer = 60
         end
     end
 end)
 
 function NextWeatherStage()
-    if CurrentWeather == "CLEAR" or CurrentWeather == "CLOUDS" or CurrentWeather == "EXTRASUNNY"  then
+    if CurrentWeather == "CLEAR" or CurrentWeather == "EXTRASUNNY"  then
         local new = math.random(1,2)
         if new == 1 then
             CurrentWeather = "CLEARING"
@@ -335,7 +388,7 @@ function NextWeatherStage()
     elseif CurrentWeather == "CLEARING" or CurrentWeather == "OVERCAST" then
         local new = math.random(1,6)
         if new == 1 then
-            if CurrentWeather == "CLEARING" then CurrentWeather = "FOGGY" else CurrentWeather = "RAIN" end
+            if CurrentWeather == "CLEARING" then CurrentWeather = "FOGGY" else CurrentWeather = "SMOG" end
         elseif new == 2 then
             CurrentWeather = "CLOUDS"
         elseif new == 3 then
@@ -347,8 +400,6 @@ function NextWeatherStage()
         else
             CurrentWeather = "FOGGY"
         end
-    elseif CurrentWeather == "THUNDER" or CurrentWeather == "RAIN" then
-        CurrentWeather = "CLEARING"
     elseif CurrentWeather == "SMOG" or CurrentWeather == "FOGGY" then
         CurrentWeather = "CLEAR"
     end
@@ -358,4 +409,3 @@ function NextWeatherStage()
         print("[vSync] Resetting timer to 10 minutes.\n")
     end
 end
-
