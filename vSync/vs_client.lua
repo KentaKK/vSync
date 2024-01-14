@@ -1,10 +1,21 @@
-CurrentWeather = 'EXTRASUNNY'
+CurrentWeather = 'XMAS'
 local lastWeather = CurrentWeather
 local baseTime = 0
 local timeOffset = 0
 local timer = 0
 local freezeTime = false
 local blackout = false
+local set = false
+
+RegisterNetEvent('vSync:updateSet')
+AddEventHandler('vSync:updateSet', function()
+    set = true
+end)
+
+RegisterNetEvent('vSync:updateSet2')
+AddEventHandler('vSync:updateSet2', function()
+    set = false
+end)
 
 RegisterNetEvent('vSync:updateWeather')
 AddEventHandler('vSync:updateWeather', function(NewWeather, newblackout)
@@ -12,14 +23,14 @@ AddEventHandler('vSync:updateWeather', function(NewWeather, newblackout)
     blackout = newblackout
 end)
 
-Citizen.CreateThread(function()
+CreateThread(function()
     while true do
         if lastWeather ~= CurrentWeather then
             lastWeather = CurrentWeather
-            SetWeatherTypeOverTime(CurrentWeather, 15.0)
-            Citizen.Wait(15000)
+            SetWeatherTypeOvertimePersist(CurrentWeather, 15.0)
+            Wait(15000)
         end
-        Citizen.Wait(100) -- Wait 0 seconds to prevent crashing.
+        Wait(100) -- Wait 0 seconds to prevent crashing.
         SetBlackout(blackout)
         ClearOverrideWeather()
         ClearWeatherTypePersist()
@@ -43,23 +54,40 @@ AddEventHandler('vSync:updateTime', function(base, offset, freeze)
     baseTime = base
 end)
 
-Citizen.CreateThread(function()
-    local hour = 0
-    local minute = 0
+RegisterNetEvent('vSync:changeTime')
+AddEventHandler('vSync:changeTime', function(time)
+    ExecuteCommand(time)
+end)
+
+CreateThread(function()
+    local hour = 00
+    local minute = 00
     while true do
-        Citizen.Wait(0)
+        Wait(200)
         local newBaseTime = baseTime
         if GetGameTimer() - 500  > timer then
             newBaseTime = newBaseTime + 0.25
             timer = GetGameTimer()
         end
         if freezeTime then
-            timeOffset = timeOffset + baseTime - newBaseTime			
+            timeOffset = timeOffset + baseTime - newBaseTime
         end
         baseTime = newBaseTime
-        hour = math.floor(((baseTime+timeOffset)/60)%24)
-        minute = math.floor((baseTime+timeOffset)%60)
-        NetworkOverrideClockTime(hour, minute, 0)
+
+        if not set then
+           local years, months, days, hours, minutes, seconds = GetLocalTime()
+                hour = hours
+                minute = minutes
+	            --day = days
+	            --month = months
+	            --year = years
+	            --second = seconds
+            NetworkOverrideClockTime(hour, minute, 0)
+        else
+            hour = math.floor(((baseTime+timeOffset)/60)%24)
+            minute = math.floor((baseTime+timeOffset)%60)
+            NetworkOverrideClockTime(hour, minute, 0)
+        end
     end
 end)
 
@@ -67,7 +95,7 @@ AddEventHandler('playerSpawned', function()
     TriggerServerEvent('vSync:requestSync')
 end)
 
-Citizen.CreateThread(function()
+CreateThread(function()
     TriggerEvent('chat:addSuggestion', '/weather', 'Change the weather.', {{ name="weatherType", help="Available types: extrasunny, clear, neutral, smog, foggy, overcast, clouds, clearing, rain, thunder, snow, blizzard, snowlight, xmas & halloween"}})
     TriggerEvent('chat:addSuggestion', '/time', 'Change the time.', {{ name="hours", help="A number between 0 - 23"}, { name="minutes", help="A number between 0 - 59"}})
     TriggerEvent('chat:addSuggestion', '/freezetime', 'Freeze / unfreeze time.')
@@ -80,11 +108,11 @@ Citizen.CreateThread(function()
 end)
 
 -- Display a notification above the minimap.
-function ShowNotification(text, blink)
+local function ShowNotification(text, blink)
     if blink == nil then blink = false end
-    SetNotificationTextEntry("STRING")
+    BeginTextCommandThefeedPost("STRING")
     AddTextComponentSubstringPlayerName(text)
-    DrawNotification(blink, false)
+    EndTextCommandThefeedPostTicker(blink, false)
 end
 
 RegisterNetEvent('vSync:notify')
